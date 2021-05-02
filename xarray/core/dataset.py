@@ -2245,7 +2245,71 @@ class Dataset(DataWithCoords, DatasetArithmetic, Mapping):
         indexes.update(new_indexes)
         coord_names = self._coord_names & variables.keys() | coord_vars.keys()
         return self._replace_with_new_dims(variables, coord_names, indexes=indexes)
-
+    def metodito_de_alex(
+    self,
+    indexers: Mapping[Hashable, Any] = None,
+    method: str = None,
+    tolerance: Number = None,
+    drop: bool = False,
+    **indexers_kwargs: Any,
+    ) -> "Dataset":
+    """Returns a new dataset with each array indexed by tick labels
+    along the specified dimension(s).
+    In contrast to `Dataset.isel`, indexers for this method should use
+    labels instead of integers.
+    Under the hood, this method is powered by using pandas's powerful Index
+    objects. This makes label based indexing essentially just as fast as
+    using integer indexing.
+    It also means this method uses pandas's (well documented) logic for
+    indexing. This means you can use string shortcuts for datetime indexes
+    (e.g., '2000-01' to select all values in January 2000). It also means
+    that slices are treated as inclusive of both the start and stop values,
+    unlike normal Python indexing.
+    Parameters
+    ----------
+    indexers : dict, optional
+        A dict with keys matching dimensions and values given
+        by scalars, slices or arrays of tick labels. For dimensions with
+        multi-index, the indexer may also be a dict-like object with keys
+        matching index level names.
+        If DataArrays are passed as indexers, xarray-style indexing will be
+        carried out. See :ref:`indexing` for the details.
+        One of indexers or indexers_kwargs must be provided.
+    method : {None, "nearest", "pad", "ffill", "backfill", "bfill"}, optional
+        Method to use for inexact matches:
+        * None (default): only exact matches
+        * pad / ffill: propagate last valid index value forward
+        * backfill / bfill: propagate next valid index value backward
+        * nearest: use nearest valid index value
+    tolerance : optional
+        Maximum distance between original and new labels for inexact
+        matches. The values of the index at the matching locations must
+        satisfy the equation ``abs(index[indexer] - target) <= tolerance``.
+    drop : bool, optional
+        If ``drop=True``, drop coordinates variables in `indexers` instead
+        of making them scalar.
+    **indexers_kwargs : {dim: indexer, ...}, optional
+        The keyword arguments form of ``indexers``.
+        One of indexers or indexers_kwargs must be provided.
+    Returns
+    -------
+    obj : Dataset
+        A new Dataset with the same contents as this dataset, except each
+        variable and dimension is indexed by the appropriate indexers.
+        If indexer DataArrays have coordinates that do not conflict with
+        this object, then these coordinates will be attached.
+        In general, each array's data will be a view of the array's data
+        in this dataset, unless vectorized indexing was triggered by using
+        an array indexer, in which case the data will be a copy.
+    See Also
+    --------
+    Dataset.isel
+    DataArray.sel
+    """
+    indexers = either_dict_or_kwargs(indexers, indexers_kwargs, "sel")
+    pos_indexers, new_indexes = remap_label_indexers(
+        self, indexers=indexers, method=method, tolerance=tolerance)
+    return pos_indexers
     def sel(
         self,
         indexers: Mapping[Hashable, Any] = None,
